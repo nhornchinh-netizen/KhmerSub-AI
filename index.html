@@ -78,20 +78,26 @@ details{border:1px solid var(--line);border-radius:12px;padding:10px}summary{cur
 <section class="panel">
  <b>AI បកប្រែ និងបង្កើតសំឡេងស្វ័យប្រវត្តិ</b>
  <p class="hint">គាំទ្រសំឡេងដើមជាភាសាចិន និងអង់គ្លេស ហើយបកប្រែទៅជាភាសាខ្មែរ។ ជ្រើសស្វ័យប្រវត្តិដើម្បីឱ្យ Backend សម្គាល់ភាសាចិន/អង់គ្លេស ឬជ្រើសភាសាដោយដៃ។ API Key ត្រូវរក្សាទុកនៅ Backend មិនត្រូវដាក់ក្នុង HTML។</p>
- <label>Backend API URL (មិនចាំបាច់ ប្រសិនបើមិនទាន់មាន)</label>
- <input class="field" id="apiUrl" type="url" placeholder="https://your-server.example.com/api/transcribe-translate">
+ <label>Backend API URL</label>
+ <input class="field" id="apiUrl" type="url" placeholder="https://your-backend.example.com">
+ <label>ឯកសារសំឡេង/វីដេអូសម្រាប់ AI (MP3, WAV, M4A, MP4)</label>
+ <input class="field" id="mediaFile" type="file" accept="audio/*,video/*">
+ <p class="hint">សម្រាប់ AI សូម Upload ឯកសារដែលអ្នកមានសិទ្ធិប្រើ។ Link YouTube អាចប្រើសម្រាប់ចាក់ និង Sync ប៉ុណ្ណោះ។
  <div class="grid">
   <div><label>ភាសាសំឡេងដើម</label><select class="field" id="sourceLang"><option value="auto" selected>ស្វ័យប្រវត្តិ (ចិន / អង់គ្លេស)</option><option value="zh">ចិន</option><option value="en">អង់គ្លេស</option></select></div>
   <div><label>ភាសាបកប្រែ</label><select class="field" id="targetLang"><option value="km" selected>ខ្មែរ</option></select></div>
  </div>
- <div class="controls"><button id="aiProcess">✨ ចាប់ផ្ដើម AI បកប្រែ</button></div>
- <div class="note warn">ចំណាំ៖ មុខងារ AI ស្វ័យប្រវត្តិនឹងដំណើរការបាន លុះត្រាតែមាន Backend ដែលអាចទាញយក/ទទួលសំឡេងដោយស្របច្បាប់ ហើយបញ្ជូនត្រឡប់ Subtitle ជា JSON។ YouTube Player មិនអនុញ្ញាតឱ្យ HTML ទាញយក Audio Stream ដោយផ្ទាល់ទេ។</div>
+ <div class="controls"><button id="aiProcess">✨ បកប្រែ + បង្កើតសំឡេងខ្មែរ</button></div>
+ <div class="meta"><span id="aiProgressText">AI មិនទាន់ដំណើរការ</span><b id="aiProgressPct">0%</b></div>
+ <div class="progress"><div class="fill" id="aiProgressBar"></div></div>
+ <div class="controls"><button class="alt" id="downloadSrt">ទាញយក Subtitle .SRT</button><button class="alt" id="downloadAudio">ទាញយកសំឡេងខ្មែរ</button></div>
+ <div class="note warn">ចំណាំ៖ AI ប្រើឯកសារដែលអ្នក Upload ទៅ Backend។ YouTube IFrame API មិនផ្ដល់ Audio Stream ឱ្យគេហទំព័រទាញយកទេ។ សំឡេង AI ត្រូវការ Backend និង API Key។ កុំបញ្ចូលឯកសារដែលអ្នកគ្មានសិទ្ធិប្រើ។</div>
  <div id="aiStatus" class="muted">រង់ចាំ Backend API</div>
 </section>
 
 <details class="panel">
  <summary>របៀបភ្ជាប់ Backend API</summary>
- <p class="hint">HTML នេះផ្ញើ POST JSON ទៅ URL ដែលអ្នកកំណត់៖</p>
+ <p class="hint">HTML ផ្ញើឯកសារទៅ POST /api/process (multipart/form-data)។ បន្ទាប់ពីដាក់ Backend URL ឧ. https://your-backend.example.com សូមដាក់ API Key ក្នុង Environment Variable របស់ Server មិនមែនក្នុង HTML។</p>
  <pre class="note small">{
   "videoId": "YouTube_ID",
   "sourceLanguage": "auto",
@@ -130,7 +136,7 @@ $('play').onclick=()=>{if(!ready)return;if(player.getPlayerState()===1)player.pa
 $('back').onclick=()=>ready&&player.seekTo(Math.max(0,player.getCurrentTime()-5),true);
 $('forward').onclick=()=>ready&&player.seekTo(player.getCurrentTime()+5,true);
 $('seek').onchange=()=>{if(ready){const d=player.getDuration();if(d)player.seekTo(d*Number($('seek').value)/1000,true)}};
-$('stopVoice').onclick=()=>{if(window.speechSynthesis)speechSynthesis.cancel();lastSpoken=-1;if(ready&&$('muteOriginal').checked)player.unMute()};
+$('stopVoice').onclick=()=>{if(window.speechSynthesis)speechSynthesis.cancel();if(activeAudio){activeAudio.pause();activeAudio=null}lastSpoken=-1;if(ready&&$('muteOriginal').checked)player.unMute()};
 function parseTimedText(text){
  const out=[];const clean=text.replace(/\r/g,'');
  if(/WEBVTT/i.test(clean)||/\d\d:\d\d:\d\d[,\.]\d{3}\s*-->/.test(clean)){
@@ -147,25 +153,49 @@ $('subtitleFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;cons
 function speak(text){if(!('speechSynthesis'in window)){status('Browser នេះមិនគាំទ្រ Text-to-Speech');return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='km-KH';u.rate=Number($('rate').value);u.volume=Number($('volume').value);const voices=speechSynthesis.getVoices();const km=voices.find(v=>/^km/i.test(v.lang));if(km)u.voice=km;speechSynthesis.speak(u)}
 $('testVoice').onclick=()=>speak('សួស្តី សូមស្វាគមន៍មកកាន់ KhmerSub AI');
 $('preview').onclick=()=>{if(!ready)return status('Player មិនទាន់រួចរាល់');clearInterval(previewTimer);const n=Number($('lead').value);previewing=true;lastSpoken=-1;player.mute();player.seekTo(0,true);player.playVideo();const end=Date.now()+n*1000;previewTimer=setInterval(()=>{const left=Math.max(0,(end-Date.now())/1000);$('previewStatus').textContent='មើលមុន៖ '+Math.ceil(left)+' វិនាទី';if(left<=0){clearInterval(previewTimer);previewing=false;player.pauseVideo();player.seekTo(0,true);if($('muteOriginal').checked)player.mute();else player.unMute();lastSpoken=-1;player.playVideo();$('previewStatus').textContent='មើលមុនរួចរាល់ — ចាប់ផ្ដើមពីដើម'}},200)};
+
+let aiSegments=[], dubbedAudio=null, activeAudio=null, activeAudioIndex=-1;
+function setAIProgress(n,msg){$('aiProgressBar').style.width=n+'%';$('aiProgressPct').textContent=n+'%';$('aiProgressText').textContent=msg}
+function downloadBlob(blob,name){const a=document.createElement('a');const u=URL.createObjectURL(blob);a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500)}
+$('downloadSrt').onclick=()=>{
+ if(!lines.length){$('aiStatus').textContent='មិនទាន់មាន Subtitle';return}
+ const stamp=s=>{s=Math.max(0,s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=Math.floor(s%60),ms=Math.floor((s%1)*1000);return [h,m,sec].map(x=>String(x).padStart(2,'0')).join(':')+','+String(ms).padStart(3,'0')};
+ const body=lines.map((x,i)=>`${i+1}\n${stamp(x.time)} --> ${stamp(lines[i+1]?.time ?? x.time+4)}\n${x.text}`).join('\n\n');
+ downloadBlob(new Blob([body],{type:'text/plain;charset=utf-8'}),'KhmerSub.srt');
+};
+$('downloadAudio').onclick=()=>{if(!dubbedAudio){$('aiStatus').textContent='មិនទាន់មានសំឡេង AI សម្រាប់ទាញយក';return}downloadBlob(dubbedAudio,'KhmerSub-dubbing.wav')};
 $('aiProcess').onclick=async()=>{
- const endpoint=$('apiUrl').value.trim();if(!endpoint){$('aiStatus').textContent='សូមបញ្ចូល Backend API URL ជាមុន។ HTML តែមួយមិនអាចធ្វើ AI Transcription ពីសំឡេង YouTube ដោយផ្ទាល់បានទេ។';return}
- if(!currentVideoId){$('aiStatus').textContent='សូមផ្ទុក YouTube Video ជាមុន។';return}
- $('aiProcess').disabled=true;$('aiStatus').textContent='កំពុងផ្ញើសំណើទៅ AI Backend…';
+ const base=$('apiUrl').value.trim().replace(/\/+$/,'');
+ const file=$('mediaFile').files[0];
+ if(!base){$('aiStatus').textContent='សូមដាក់ Backend API URL ជាមុន';return}
+ if(!file){$('aiStatus').textContent='សូម Upload ឯកសារសំឡេង ឬវីដេអូជាមុន';return}
+ if(file.size>100*1024*1024){$('aiStatus').textContent='ឯកសារធំពេក (កំណត់ 100MB សម្រាប់ starter)';return}
+ $('aiProcess').disabled=true;setAIProgress(3,'កំពុង Upload ឯកសារ…');$('aiStatus').textContent='កំពុងបញ្ជូនឯកសារទៅ AI Backend';
  try{
-  const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({videoId:currentVideoId,sourceLanguage:$('sourceLang').value,targetLanguage:'km',previewSeconds:Number($('lead').value)})});
-  if(!res.ok)throw new Error('HTTP '+res.status);
-  const data=await res.json();if(!Array.isArray(data.segments))throw new Error('Backend response ត្រូវមាន segments[]');
-  lines=data.segments.map(x=>({time:Number(x.start),text:String(x.text||'').trim()})).filter(x=>Number.isFinite(x.time)&&x.time>=0&&x.text).sort((a,b)=>a.time-b.time);
-  $('script').value=lines.map(x=>x.time+'|'+x.text).join('\n');lastSpoken=-1;$('subtitleStatus').textContent=lines.length+' បន្ទាត់ AI Subtitle ត្រូវបានបង្កើត';$('aiStatus').textContent='AI បកប្រែរួចរាល់ — '+lines.length+' បន្ទាត់';
- }catch(err){$('aiStatus').textContent='AI Backend មានបញ្ហា៖ '+err.message+'. ពិនិត្យ URL, CORS និងទម្រង់ JSON។'}
+  const form=new FormData();form.append('media',file);form.append('sourceLanguage',$('sourceLang').value);form.append('targetLanguage','km');
+  const res=await fetch(base+'/api/process',{method:'POST',body:form});
+  if(!res.ok){const t=await res.text();throw new Error('HTTP '+res.status+' '+t.slice(0,300))}
+  setAIProgress(65,'AI កំពុងបកប្រែ និងបង្កើតសំឡេង…');
+  const data=await res.json();
+  if(!Array.isArray(data.segments)||!data.segments.length)throw new Error('Backend មិនបានបញ្ជូន segments[]');
+  aiSegments=data.segments;lines=aiSegments.map(x=>({time:Number(x.start),text:String(x.text||'').trim()})).filter(x=>Number.isFinite(x.time)&&x.text).sort((a,b)=>a.time-b.time);
+  $('script').value=lines.map(x=>x.time+'|'+x.text).join('\n');lastSpoken=-1;
+  $('subtitleStatus').textContent=lines.length+' បន្ទាត់ AI Subtitle';$('aiStatus').textContent='បកប្រែរួចរាល់ — '+lines.length+' បន្ទាត់';
+  if(data.audioBase64){const raw=atob(data.audioBase64),arr=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);dubbedAudio=new Blob([arr],{type:data.audioMimeType||'audio/wav'});$('aiStatus').textContent+=' · មានសំឡេងខ្មែរ'}
+  setAIProgress(100,'រួចរាល់');$('caption').textContent=lines[0]?.text||'Subtitle រួចរាល់';
+ }catch(err){$('aiStatus').textContent='AI មានបញ្ហា៖ '+err.message;setAIProgress(0,'បរាជ័យ — ពិនិត្យ Backend')}
  finally{$('aiProcess').disabled=false}
 };
+
+function playSegmentAudio(seg){
+ try{if(activeAudio){activeAudio.pause();activeAudio=null}const raw=atob(seg.audioBase64),arr=new Uint8Array(raw.length);for(let j=0;j<raw.length;j++)arr[j]=raw.charCodeAt(j);const blob=new Blob([arr],{type:seg.audioMimeType||'audio/wav'});activeAudio=new Audio(URL.createObjectURL(blob));activeAudio.play().catch(()=>{});}catch(e){}
+}
 setInterval(()=>{if(!ready)return;try{
  const t=player.getCurrentTime()||0,d=player.getDuration()||0,st=player.getPlayerState();$('clock').textContent=fmt(t)+' / '+fmt(d);
  if(d&&document.activeElement!==$('seek'))$('seek').value=String(Math.round(t/d*1000));
  if(st===1||st===3){const f=player.getVideoLoadedFraction();progress(f*100,'Buffer YouTube '+Math.round(f*100)+'%')}
  if(lines.length){let i=-1;for(let k=0;k<lines.length;k++){if(t+Number($('offset').value||0)>=lines[k].time)i=k;else break}
-  if(i>=0){$('caption').textContent=lines[i].text;if(!previewing&&$('voiceOn').checked&&st===1&&i!==lastSpoken){if($('muteOriginal').checked)player.mute();speak(lines[i].text);lastSpoken=i}}
+  if(i>=0){$('caption').textContent=lines[i].text;if(!previewing&&$('voiceOn').checked&&st===1&&i!==lastSpoken){if($('muteOriginal').checked)player.mute();if(aiSegments[i]?.audioBase64){playSegmentAudio(aiSegments[i])}else{speak(lines[i].text)}lastSpoken=i}}
  }
 }catch(e){}},250);
 if(location.protocol==='https:'){$('httpsBadge').textContent='HTTPS READY';$('httpsBadge').style.background='#064e3b'}else{$('httpsBadge').textContent='HTTPS REQUIRED';$('httpsBadge').style.background='#7f1d1d';status('សូមបើកតាម GitHub Pages HTTPS')}
