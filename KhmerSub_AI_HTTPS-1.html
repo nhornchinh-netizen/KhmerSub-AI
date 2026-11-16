@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="km">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>KhmerSub AI — HTTPS Player</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;600;700&display=swap');
+:root{color-scheme:dark;--bg:#08111f;--panel:#111e30;--line:#2b3d55;--blue:#38bdf8;--muted:#9aacc2}
+*{box-sizing:border-box}body{margin:0;padding:12px;background:var(--bg);color:#f4f8ff;font-family:'Kantumruy Pro',system-ui,sans-serif}
+.app{max-width:760px;margin:auto;display:grid;gap:12px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:15px}
+.head{display:flex;justify-content:space-between;align-items:center;gap:10px}.brand{font-size:22px;font-weight:700;color:var(--blue)}.muted,.hint{font-size:13px;color:var(--muted);line-height:1.65}.pill{font-size:11px;color:#6ee7b7;background:#064e3b;border-radius:30px;padding:5px 9px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.urlrow{display:flex;gap:8px}.field{width:100%;min-width:0;background:#091525;color:white;border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit}.urlrow .field{flex:1}
+button{border:0;border-radius:10px;padding:11px 14px;background:#1d4ed8;color:#fff;font:600 14px 'Kantumruy Pro',sans-serif;cursor:pointer}button.alt{background:#293b54}button:disabled{opacity:.5;cursor:not-allowed}
+.video{aspect-ratio:16/9;background:#000;border:1px solid var(--line);border-radius:14px;overflow:hidden;position:relative}
+#player{width:100%;height:100%;border:0;display:block}
+.caption{position:absolute;bottom:6%;left:5%;width:90%;text-align:center;color:#ffe66d;text-shadow:0 2px 5px #000;font-size:clamp(15px,3vw,22px);font-weight:700;pointer-events:none}
+.progress{height:9px;background:#26364c;border-radius:20px;overflow:hidden}.fill{height:100%;width:0;background:linear-gradient(90deg,#0ea5e9,#10b981)}
+.meta{display:flex;justify-content:space-between;font-size:12px;color:#c4d5e8;margin:8px 0}
+.time{font-size:13px;color:#dbeafe;font-variant-numeric:tabular-nums}.seek{width:100%;accent-color:var(--blue)}
+.controls{display:flex;gap:8px;margin:12px 0}.controls button{flex:1}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.toggle{display:flex;align-items:center;gap:8px;font-size:13px;margin:8px 0}.toggle input{width:18px;height:18px;accent-color:#10b981}
+textarea{min-height:110px;resize:vertical;line-height:1.6}.notice{border:1px solid #735c2c;background:#332b19;color:#f7dfa0;padding:12px;border-radius:12px;font-size:12px;line-height:1.7}
+.ok{border-color:#1d765a;background:#102f29;color:#a7f3d0}
+@media(max-width:520px){.grid{grid-template-columns:1fr}.panel{padding:12px}.urlrow button{padding:10px}.controls{gap:6px}.controls button{padding:10px 5px}}
+</style>
+</head>
+<body>
+<main class="app">
+<header class="panel head"><div><div class="brand">KhmerSub AI</div><div class="muted">YouTube Player · Khmer Subtitle · Voice Sync</div></div><span class="pill">HTTPS READY</span></header>
+
+<section class="panel">
+ <div class="urlrow"><input class="field" id="url" value="https://youtu.be/LD7EIISF5-M" placeholder="បិទភ្ជាប់ Link YouTube"><button id="load">ផ្ទុកវីដេអូ</button></div>
+ <div class="meta"><span id="loadText">កំពុងពិនិត្យអាសយដ្ឋានគេហទំព័រ…</span><b id="percent">0%</b></div>
+ <div class="progress"><div class="fill" id="bar"></div></div>
+ <p class="hint" id="environment">ភាគរយបង្ហាញ Buffer ដែល YouTube រាយការណ៍ មិនមែនការទាញយកវីដេអូទាំងមូលទេ។</p>
+</section>
+
+<section class="video">
+ <iframe id="player" title="YouTube video player" referrerpolicy="strict-origin-when-cross-origin"
+   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+   allowfullscreen></iframe>
+ <div class="caption" id="caption"></div>
+</section>
+
+<section class="panel">
+ <div class="row"><b>ការបញ្ជាវីដេអូ</b><span class="time" id="clock">00:00 / 00:00</span></div>
+ <input class="seek" id="seek" type="range" min="0" max="1000" value="0">
+ <div class="controls"><button class="alt" id="back">⏪ -5 វិនាទី</button><button id="play">▶ លេង</button><button class="alt" id="forward">+5 វិនាទី ⏩</button></div>
+ <div class="row"><span class="muted" id="status">កំពុងរៀបចំ Player…</span><button class="alt" id="stop">បញ្ឈប់សំឡេង</button></div>
+</section>
+
+<section class="panel">
+ <b>មើលមុនដើម្បី Buffer</b>
+ <p class="hint">វីដេអូចាក់សាកល្បងជាមុនដោយបិទសំឡេងដើម 20–30 វិនាទី។ បន្ទាប់មកវាត្រឡប់ទៅដើម ហើយចាក់ម្ដងទៀត។</p>
+ <div class="grid">
+  <div><label class="hint" for="lead">រយៈពេលមើលមុន</label><select class="field" id="lead"><option value="20">20 វិនាទី</option><option value="25" selected>25 វិនាទី</option><option value="30">30 វិនាទី</option></select></div>
+  <div><label class="hint" for="rate">ល្បឿនសំឡេងអាន</label><select class="field" id="rate"><option value=".85">យឺត</option><option value="1" selected>ធម្មតា</option><option value="1.15">លឿន</option></select></div>
+ </div>
+ <div class="controls"><button id="preview">▶ មើលមុន រួចចាប់ផ្ដើមពីដើម</button></div>
+ <label class="toggle"><input type="checkbox" id="voiceOn" checked> អានអត្ថបទខ្មែរតាមម៉ោង</label>
+ <label class="toggle"><input type="checkbox" id="muteOriginal" checked> បិទសំឡេងដើម YouTube ពេលចាក់សំឡេងខ្មែរ</label>
+ <div class="muted" id="previewStatus">មិនទាន់ចាប់ផ្ដើមមើលមុនទេ។</div>
+</section>
+
+<section class="panel">
+ <b>អត្ថបទខ្មែរ (វិនាទី|អត្ថបទ)</b>
+ <p class="hint">ឧទាហរណ៍៖ 0|សួស្តី។ បន្ទាត់នីមួយៗចាប់ផ្ដើមតាមវិនាទីក្នុងវីដេអូ។</p>
+ <textarea class="field" id="script">0|សូមស្វាគមន៍មកកាន់ KhmerSub AI។
+12|ប្រព័ន្ធកំពុងសាកល្បងចំណងជើង និងសំឡេងជាភាសាខ្មែរ។
+28|នេះជាឧទាហរណ៍សម្រាប់សាកល្បងការធ្វើសមកាលកម្ម។</textarea>
+ <div class="controls"><button id="apply">អនុវត្តអត្ថបទ</button></div>
+</section>
+
+<section class="panel notice">
+ <b>ចំណាំអំពី Error 153</b><br>
+ ឯកសារ HTML មួយនេះមិនអាចជួសជុល Error 153 ដោយខ្លួនឯង ប្រសិនបើអ្នកបើកវាពី Downloads (`content://`) ទេ។ ត្រូវដាក់ឯកសារនេះលើគេហទំព័រ HTTPS ពិតប្រាកដ ហើយបើកតាម URL `https://...`។ កូដបានកំណត់ `referrerpolicy="strict-origin-when-cross-origin"` និង `origin` សម្រាប់ YouTube IFrame API រួចហើយ។ បើម្ចាស់វីដេអូបិទការបង្កប់ វានៅតែមិនអាចចាក់ក្នុងគេហទំព័រនេះបានទេ។
+</section>
+</main>
+
+<script>
+let player=null,ready=false,lines=[],lastLine=-1,previewTimer=null,previewDeadline=0,previewing=false;
+const $=id=>document.getElementById(id);
+function fmt(n){n=Math.max(0,Math.floor(n||0));return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0')}
+function setStatus(s){$('status').textContent=s}
+function setProgress(p,label){p=Math.max(0,Math.min(100,p));$('bar').style.width=p+'%';$('percent').textContent=Math.round(p)+'%';$('loadText').textContent=label}
+function secureOrigin(){return location.protocol==='https:'||(location.hostname==='localhost'&&location.protocol==='http:')}
+function videoId(s){try{const u=new URL(s.trim());if(u.hostname==='youtu.be'||u.hostname.endsWith('.youtu.be'))return u.pathname.split('/').filter(Boolean)[0];if(u.hostname.includes('youtube.com'))return u.searchParams.get('v')||u.pathname.split('/').filter(Boolean).pop()}catch(e){}return /^[\w-]{11}$/.test(s.trim())?s.trim():null}
+function onYouTubeIframeAPIReady(){
+ const iframe=$('player');
+ player=new YT.Player(iframe,{videoId:'LD7EIISF5-M',host:'https://www.youtube.com',
+  playerVars:{enablejsapi:1,playsinline:1,rel:0,origin:location.origin},
+  events:{
+   onReady:()=>{ready=true;setProgress(10,'Player ត្រៀមរួចរាល់');setStatus('Player រួចរាល់');},
+   onStateChange:e=>{if(e.data===YT.PlayerState.PLAYING){$('play').textContent='⏸ ផ្អាក';setStatus('កំពុងចាក់')}else if(e.data===YT.PlayerState.PAUSED){$('play').textContent='▶ លេង';setStatus('បានផ្អាក')}else if(e.data===YT.PlayerState.BUFFERING)setStatus('កំពុង Buffer…')},
+   onError:e=>{const m={2:'Video ID មិនត្រឹមត្រូវ',5:'កំហុស HTML5 Player',100:'វីដេអូមិនមាន ឬត្រូវបានលុប',101:'ម្ចាស់វីដេអូបិទការបង្កប់',150:'ម្ចាស់វីដេអូបិទការបង្កប់',153:'YouTube មិនទទួលបាន HTTP Referer — សូមបើកតាម HTTPS domain មិនមែន Downloads'};const msg=m[e.data]||('YouTube error '+e.data);setProgress(0,'ផ្ទុកមិនបាន');setStatus(msg);$('environment').textContent=msg}
+  }});
+}
+function loadVideo(){if(!secureOrigin()){setStatus('ត្រូវបើកតាម HTTPS មុនសិន — មិនអាចប្រើ content:// ឬ file://');$('environment').textContent='សូម Upload index.html ទៅ HTTPS hosting ហើយបើកតាម URL https://…';return}const id=videoId($('url').value);if(!id){setStatus('Link YouTube មិនត្រឹមត្រូវ');return}if(!ready){setStatus('Player មិនទាន់រួចរាល់');return}clearInterval(previewTimer);previewing=false;setProgress(5,'កំពុងផ្ញើសំណើទៅ YouTube…');player.loadVideoById(id)}
+$('load').onclick=loadVideo;
+$('play').onclick=()=>{if(!ready)return;if(player.getPlayerState()===YT.PlayerState.PLAYING)player.pauseVideo();else player.playVideo()};
+$('back').onclick=()=>ready&&player.seekTo(Math.max(0,player.getCurrentTime()-5),true);
+$('forward').onclick=()=>ready&&player.seekTo(player.getCurrentTime()+5,true);
+$('seek').onchange=()=>{if(ready){const d=player.getDuration();if(d)player.seekTo(d*Number($('seek').value)/1000,true)}};
+$('stop').onclick=()=>{if('speechSynthesis'in window)speechSynthesis.cancel();lastLine=-1};
+function parseLines(){return $('script').value.split('\n').map(s=>{const i=s.indexOf('|');if(i<1)return null;const t=Number(s.slice(0,i)),text=s.slice(i+1).trim();return Number.isFinite(t)&&t>=0&&text?{time:t,text}:null}).filter(Boolean).sort((a,b)=>a.time-b.time)}
+$('apply').onclick=()=>{lines=parseLines();lastLine=-1;$('previewStatus').textContent='បានអនុវត្តអត្ថបទ '+lines.length+' បន្ទាត់'};
+$('apply').click();
+function speak(text){if(!('speechSynthesis'in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='km-KH';u.rate=Number($('rate').value);speechSynthesis.speak(u)}
+function startPreview(){if(!secureOrigin()){setStatus('សូមបើកកម្មវិធីតាម HTTPS domain ជាមុន');return}if(!ready){setStatus('សូមរង់ចាំ Player រួចរាល់');return}clearInterval(previewTimer);if('speechSynthesis'in window)speechSynthesis.cancel();const seconds=Number($('lead').value);previewing=true;previewDeadline=Date.now()+seconds*1000;player.mute();player.seekTo(0,true);player.playVideo();$('previewStatus').textContent='កំពុងមើលមុន '+seconds+' វិនាទី…';previewTimer=setInterval(()=>{const left=Math.max(0,(previewDeadline-Date.now())/1000);$('previewStatus').textContent='កំពុងមើលមុន៖ '+Math.ceil(left)+' វិនាទី';if(left<=0){clearInterval(previewTimer);previewing=false;player.pauseVideo();player.seekTo(0,true);if($('muteOriginal').checked)player.mute();else player.unMute();lastLine=-1;player.playVideo();$('previewStatus').textContent='មើលមុនរួចរាល់ — ចាប់ផ្ដើមពីដើម'}},200)}
+$('preview').onclick=startPreview;
+if(!secureOrigin()){$('environment').textContent='អ្នកកំពុងបើកពី Downloads។ សូមដាក់ឯកសារនេះលើ HTTPS hosting មុន ទើប YouTube Player អាចទទួល Referer បាន។';setStatus('ត្រូវការ HTTPS hosting');$('load').disabled=true;$('preview').disabled=true}else{$('environment').textContent='HTTPS ត្រូវបានរកឃើញ។ កំពុងរៀបចំ YouTube Player…';setProgress(3,'កំពុងភ្ជាប់ YouTube API…')}
+setInterval(()=>{if(!ready)return;const t=player.getCurrentTime()||0,d=player.getDuration()||0,state=player.getPlayerState();$('clock').textContent=fmt(t)+' / '+fmt(d);if(d&&document.activeElement!==$('seek'))$('seek').value=String(Math.round(t/d*1000));if(state===YT.PlayerState.PLAYING||state===YT.PlayerState.BUFFERING){const f=player.getVideoLoadedFraction?player.getVideoLoadedFraction():0;setProgress(Math.max(10,f*100),'Buffer បាន '+Math.round(f*100)+'%')}let idx=-1;for(let i=0;i<lines.length;i++)if(t>=lines[i].time)idx=i;if(idx>=0){$('caption').textContent=lines[idx].text;if(!previewing&&$('voiceOn').checked&&state===YT.PlayerState.PLAYING&&idx!==lastLine){if($('muteOriginal').checked)player.mute();else player.unMute();speak(lines[idx].text);lastLine=idx}}else $('caption').textContent=''},300);
+</script>
+<script src="https://www.youtube.com/iframe_api"></script>
+</body>
+</html>
