@@ -77,11 +77,11 @@ details{border:1px solid var(--line);border-radius:12px;padding:10px}summary{cur
 
 <section class="panel">
  <b>AI បកប្រែ និងបង្កើតសំឡេងស្វ័យប្រវត្តិ</b>
- <p class="hint">ដាក់ URL របស់ Backend របស់អ្នក ដើម្បីឱ្យម៉ាស៊ីនមេធ្វើ Transcription និងបកប្រែ។ API Key ត្រូវរក្សាទុកនៅ Backend មិនត្រូវដាក់ក្នុង HTML។</p>
+ <p class="hint">គាំទ្រសំឡេងដើមជាភាសាចិន និងអង់គ្លេស ហើយបកប្រែទៅជាភាសាខ្មែរ។ ជ្រើសស្វ័យប្រវត្តិដើម្បីឱ្យ Backend សម្គាល់ភាសាចិន/អង់គ្លេស ឬជ្រើសភាសាដោយដៃ។ API Key ត្រូវរក្សាទុកនៅ Backend មិនត្រូវដាក់ក្នុង HTML។</p>
  <label>Backend API URL (មិនចាំបាច់ ប្រសិនបើមិនទាន់មាន)</label>
  <input class="field" id="apiUrl" type="url" placeholder="https://your-server.example.com/api/transcribe-translate">
  <div class="grid">
-  <div><label>ភាសាសំឡេងដើម</label><select class="field" id="sourceLang"><option value="auto">ស្វ័យប្រវត្តិ</option><option value="zh">ចិន</option><option value="en">អង់គ្លេស</option><option value="th">ថៃ</option><option value="vi">វៀតណាម</option><option value="ja">ជប៉ុន</option><option value="ko">កូរ៉េ</option></select></div>
+  <div><label>ភាសាសំឡេងដើម</label><select class="field" id="sourceLang"><option value="auto" selected>ស្វ័យប្រវត្តិ (ចិន / អង់គ្លេស)</option><option value="zh">ចិន</option><option value="en">អង់គ្លេស</option></select></div>
   <div><label>ភាសាបកប្រែ</label><select class="field" id="targetLang"><option value="km" selected>ខ្មែរ</option></select></div>
  </div>
  <div class="controls"><button id="aiProcess">✨ ចាប់ផ្ដើម AI បកប្រែ</button></div>
